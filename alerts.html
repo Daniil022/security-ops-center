@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оповещения | Система тревог</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard-body">
+    <div class="top-bar">
+        <div>
+            <h1>🚨 СИСТЕМА ОПОВЕЩЕНИЙ</h1>
+            <p style="color: #ff4757; margin: 0;">Активных тревог: <span id="active-count">0</span></p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="window.location.href='dashboard.html'" style="width: auto;">📊 ДАШБОРД</button>
+            <button class="logout" onclick="logout()">ВЫХОД</button>
+        </div>
+    </div>
+
+    <!-- Навигация -->
+    <div class="nav-bar">
+        <button onclick="window.location.href='dashboard.html'">📊 ИНЦИДЕНТЫ</button>
+        <button onclick="window.location.href='cameras.html'">📹 КАМЕРЫ</button>
+        <button onclick="window.location.href='vr-house.html'">🏠 VR HOUSE</button>
+        <button onclick="window.location.href='access-log.html'">🔐 СКУД</button>
+        <button class="active" onclick="window.location.href='alerts.html'">🚨 ОПОВЕЩЕНИЯ</button>
+    </div>
+
+    <div class="widget">
+        <h2>Текущие оповещения</h2>
+        <div id="alerts-container"></div>
+    </div>
+
+    <script src="js/alerts.js"></script>
+</body>
+</html>
