@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOC Dashboard | Threat Intelligence</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard-body">
+    <div class="top-bar">
+        <div>
+            <h1>🛡️ ПАНЕЛЬ АДМИНИСТРАТОРА БЕЗОПАСНОСТИ</h1>
+            <p style="color: #00d2ff; margin: 0; font-size: 0.85em;">Уровень доступа: Administrator | Все модули разблокированы</p>
+        </div>
+        <button class="logout" onclick="logout()">ЗАВЕРШИТЬ СЕССИЮ</button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="nav-bar">
+        <button class="active" onclick="window.location.href='dashboard.html'">📊 ИНЦИДЕНТЫ</button>
+        <button onclick="window.location.href='cameras.html'">📹 КАМЕРЫ</button>
+        <button onclick="window.location.href='access-log.html'">🔐 СКУД</button>
+        <button onclick="window.location.href='alerts.html'">🚨 ОПОВЕЩЕНИЯ</button>
+    </div>
+
+    <!-- Виджет критических показателей -->
+    <div class="stats">
+        <div class="stat-card">
+            <h3>КРИТИЧЕСКИХ</h3>
+            <span id="crit-count">0</span>
+        </div>
+        <div class="stat-card">
+            <h3>В РАБОТЕ</h3>
+            <span id="prog-count">0</span>
+        </div>
+        <div class="stat-card">
+            <h3>ЗАКРЫТО</h3>
+            <span id="closed-count">0</span>
+        </div>
+        <div class="stat-card">
+            <h3>УТЕЧЕК НАЙДЕНО</h3>
+            <span>3</span>
+        </div>
+    </div>
+
+    <!-- Таблица инцидентов -->
+    <div class="widget">
+        <h2>Активные угрозы</h2>
+        <table id="incident-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Тип</th>
+                    <th>Источник</th>
+                    <th>Статус</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody id="incident-body"></tbody>
+        </table>
+    </div>
+
+    <!-- Форма добавления инцидента -->
+    <div class="widget" id="admin-panel">
+        <h3>📝 Зарегистрировать инцидент</h3>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="new-type" placeholder="Тип (Фишинг, DDoS...)" style="flex: 1;">
+            <input type="text" id="new-source" placeholder="IP/Сотрудник" style="flex: 1;">
+            <button onclick="addIncident()" style="width: auto;">СОЗДАТЬ</button>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
