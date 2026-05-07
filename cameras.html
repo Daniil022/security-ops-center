@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV | Система видеонаблюдения</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard-body">
+    <div class="top-bar">
+        <div>
+            <h1>📹 СИСТЕМА ВИДЕОНАБЛЮДЕНИЯ</h1>
+            <p style="color: #00d2ff; margin: 0; font-size: 0.85em;">Активных камер: <span id="active-cameras">3</span> | Запись: Включена</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="window.location.href='dashboard.html'" style="width: auto;">📊 ДАШБОРД</button>
+            <button class="logout" onclick="logout()">ВЫХОД</button>
+        </div>
+    </div>
+
+    <div class="cameras-grid" id="cameras-grid">
+        <!-- Камера 1 -->
+        <div class="camera-feed">
+            <div class="camera-header">
+                <span><span class="camera-status status-live"></span> CAM-01: Главный вход</span>
+                <div class="camera-controls">
+                    <button onclick="snapshot('CAM-01')">📸</button>
+                    <button onclick="connectCamera(1)">▶️</button>
+                </div>
+            </div>
+            <div class="camera-view" id="cam1">
+                <span class="camera-placeholder">
+                    <span class="icon">🎥</span>
+                    Нажмите ▶️ для подключения
+                </span>
+                <div class="timestamp-overlay" id="ts1"></div>
+            </div>
+        </div>
+
+        <!-- Камера 2 -->
+        <div class="camera-feed">
+            <div class="camera-header">
+                <span><span class="camera-status status-live"></span> CAM-02: Серверная</span>
+                <div class="camera-controls">
+                    <button onclick="snapshot('CAM-02')">📸</button>
+                    <button onclick="connectCamera(2)">▶️</button>
+                </div>
+            </div>
+            <div class="camera-view" id="cam2">
+                <span class="camera-placeholder">
+                    <span class="icon">🖥️</span>
+                    Нажмите ▶️ для подключения
+                </span>
+                <div class="timestamp-overlay" id="ts2"></div>
+            </div>
+        </div>
+
+        <!-- Камера 3 -->
+        <div class="camera-feed">
+            <div class="camera-header">
+                <span><span class="camera-status status-live"></span> CAM-03: Периметр</span>
+                <div class="camera-controls">
+                    <button onclick="snapshot('CAM-03')">📸</button>
+                    <button onclick="connectCamera(3)">▶️</button>
+                </div>
+            </div>
+            <div class="camera-view" id="cam3">
+                <span class="camera-placeholder">
+                    <span class="icon">🏗️</span>
+                    Нажмите ▶️ для подключения
+                </span>
+                <div class="timestamp-overlay" id="ts3"></div>
+            </div>
+        </div>
+
+        <!-- Камера 4 -->
+        <div class="camera-feed">
+            <div class="camera-header">
+                <span><span class="camera-status status-offline"></span> CAM-04: Склад</span>
+                <div class="camera-controls">
+                    <button onclick="snapshot('CAM-04')">📸</button>
+                    <button onclick="connectCamera(4)">▶️</button>
+                </div>
+            </div>
+            <div class="camera-view" id="cam4">
+                <span class="camera-placeholder">
+                    <span class="icon">📦</span>
+                    Нет сигнала
+                </span>
+                <div class="timestamp-overlay" id="ts4"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="widget" style="margin-top: 20px;">
+        <h3>📋 Журнал событий камер</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>Камера</th>
+                    <th>Событие</th>
+                    <th>Оператор</th>
+                </tr>
+            </thead>
+            <tbody id="camera-log"></tbody>
+        </table>
+    </div>
+
+    <script src="js/cameras.js"></script>
+</body>
+</html>
