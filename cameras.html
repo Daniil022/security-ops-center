@@ -58,6 +58,11 @@
             animation: blink 1s infinite; 
         }
         .status-offline { background: #666; }
+        .status-connecting {
+            background: #ffa502;
+            box-shadow: 0 0 10px #ffa502;
+            animation: blink 0.5s infinite;
+        }
         @keyframes blink { 
             50% { opacity: 0.5; } 
         }
@@ -85,6 +90,14 @@
             width: auto;
             margin-right: 10px;
         }
+        .wifi-setup select {
+            width: auto;
+            margin: 0 10px 0 0;
+            padding: 10px;
+            background: #0d1220;
+            border: 1px solid var(--border);
+            color: white;
+        }
         .camera-controls {
             display: flex;
             gap: 5px;
@@ -97,7 +110,37 @@
         .status-message {
             display: inline-block;
             margin-left: 10px;
-            font-size: 0.9em;
+            font-size: 0.85em;
+            min-width: 150px;
+        }
+        .cameras-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .connection-type {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+        .connection-type label {
+            cursor: pointer;
+            color: var(--text);
+        }
+        .connection-type input[type="radio"] {
+            width: auto;
+            margin: 0 5px 0 0;
+        }
+        .discovered-device {
+            background: #1a2a1a;
+            border: 1px solid #2ed573;
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
     </style>
 </head>
@@ -116,47 +159,100 @@
         </div>
     </div>
 
-    <!-- Блок подключения Wi-Fi камеры -->
+    <!-- Блок подключения камер -->
     <div class="wifi-setup">
-        <h3>📡 Подключение Wi-Fi камеры</h3>
+        <h3>📡 Подключение камер</h3>
         <p style="font-size: 0.85em; color: #888; margin-bottom: 10px;">
-            Введите IP-адрес и порт камеры в локальной сети (например: 192.168.1.100:8080)
+            Выберите способ подключения: по IP-адресу или MAC-адресу камеры
         </p>
-        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <span>Камера 1:</span>
-            <input type="text" id="cam1-ip" placeholder="192.168.1.101:8080" style="width: 200px;">
-            <button onclick="connectWiFiCamera(1)">Подключить</button>
-            <button onclick="disconnectCamera(1)" style="border-color: #ff4757; color: #ff4757;">Отключить</button>
+
+        <!-- Камера 1 -->
+        <div style="border: 1px solid var(--border); padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+            <strong>CAM-01: Главный вход</strong>
+            <div class="connection-type" style="margin-top: 8px;">
+                <label><input type="radio" name="cam1-type" value="ip" checked onchange="toggleConnectionType(1)"> По IP</label>
+                <label><input type="radio" name="cam1-type" value="mac" onchange="toggleConnectionType(1)"> По MAC</label>
+            </div>
+            <div id="cam1-ip-block">
+                <input type="text" id="cam1-ip" placeholder="192.168.1.101:8080" style="width: 200px;">
+                <button onclick="connectByIP(1)">Подключить</button>
+            </div>
+            <div id="cam1-mac-block" style="display: none;">
+                <input type="text" id="cam1-mac" placeholder="AA:BB:CC:DD:EE:FF" style="width: 180px;">
+                <button onclick="connectByMAC(1)">Найти и подключить</button>
+            </div>
+            <button onclick="disconnectCamera(1)" style="border-color: #ff4757; color: #ff4757; width: auto; margin-top: 5px;">Отключить</button>
             <span id="cam1-status" class="status-message"></span>
+            <div id="cam1-discovered"></div>
         </div>
-        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-            <span>Камера 2:</span>
-            <input type="text" id="cam2-ip" placeholder="192.168.1.102:8080" style="width: 200px;">
-            <button onclick="connectWiFiCamera(2)">Подключить</button>
-            <button onclick="disconnectCamera(2)" style="border-color: #ff4757; color: #ff4757;">Отключить</button>
+
+        <!-- Камера 2 -->
+        <div style="border: 1px solid var(--border); padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+            <strong>CAM-02: Серверная</strong>
+            <div class="connection-type" style="margin-top: 8px;">
+                <label><input type="radio" name="cam2-type" value="ip" checked onchange="toggleConnectionType(2)"> По IP</label>
+                <label><input type="radio" name="cam2-type" value="mac" onchange="toggleConnectionType(2)"> По MAC</label>
+            </div>
+            <div id="cam2-ip-block">
+                <input type="text" id="cam2-ip" placeholder="192.168.1.102:8080" style="width: 200px;">
+                <button onclick="connectByIP(2)">Подключить</button>
+            </div>
+            <div id="cam2-mac-block" style="display: none;">
+                <input type="text" id="cam2-mac" placeholder="AA:BB:CC:DD:EE:FF" style="width: 180px;">
+                <button onclick="connectByMAC(2)">Найти и подключить</button>
+            </div>
+            <button onclick="disconnectCamera(2)" style="border-color: #ff4757; color: #ff4757; width: auto; margin-top: 5px;">Отключить</button>
             <span id="cam2-status" class="status-message"></span>
+            <div id="cam2-discovered"></div>
         </div>
-        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-            <span>Камера 3:</span>
-            <input type="text" id="cam3-ip" placeholder="192.168.1.103:8080" style="width: 200px;">
-            <button onclick="connectWiFiCamera(3)">Подключить</button>
-            <button onclick="disconnectCamera(3)" style="border-color: #ff4757; color: #ff4757;">Отключить</button>
+
+        <!-- Камера 3 -->
+        <div style="border: 1px solid var(--border); padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+            <strong>CAM-03: Периметр</strong>
+            <div class="connection-type" style="margin-top: 8px;">
+                <label><input type="radio" name="cam3-type" value="ip" checked onchange="toggleConnectionType(3)"> По IP</label>
+                <label><input type="radio" name="cam3-type" value="mac" onchange="toggleConnectionType(3)"> По MAC</label>
+            </div>
+            <div id="cam3-ip-block">
+                <input type="text" id="cam3-ip" placeholder="192.168.1.103:8080" style="width: 200px;">
+                <button onclick="connectByIP(3)">Подключить</button>
+            </div>
+            <div id="cam3-mac-block" style="display: none;">
+                <input type="text" id="cam3-mac" placeholder="AA:BB:CC:DD:EE:FF" style="width: 180px;">
+                <button onclick="connectByMAC(3)">Найти и подключить</button>
+            </div>
+            <button onclick="disconnectCamera(3)" style="border-color: #ff4757; color: #ff4757; width: auto; margin-top: 5px;">Отключить</button>
             <span id="cam3-status" class="status-message"></span>
+            <div id="cam3-discovered"></div>
         </div>
-        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-            <span>Камера 4:</span>
-            <input type="text" id="cam4-ip" placeholder="192.168.1.104:8080" style="width: 200px;">
-            <button onclick="connectWiFiCamera(4)">Подключить</button>
-            <button onclick="disconnectCamera(4)" style="border-color: #ff4757; color: #ff4757;">Отключить</button>
+
+        <!-- Камера 4 -->
+        <div style="border: 1px solid var(--border); padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+            <strong>CAM-04: Склад</strong>
+            <div class="connection-type" style="margin-top: 8px;">
+                <label><input type="radio" name="cam4-type" value="ip" checked onchange="toggleConnectionType(4)"> По IP</label>
+                <label><input type="radio" name="cam4-type" value="mac" onchange="toggleConnectionType(4)"> По MAC</label>
+            </div>
+            <div id="cam4-ip-block">
+                <input type="text" id="cam4-ip" placeholder="192.168.1.104:8080" style="width: 200px;">
+                <button onclick="connectByIP(4)">Подключить</button>
+            </div>
+            <div id="cam4-mac-block" style="display: none;">
+                <input type="text" id="cam4-mac" placeholder="AA:BB:CC:DD:EE:FF" style="width: 180px;">
+                <button onclick="connectByMAC(4)">Найти и подключить</button>
+            </div>
+            <button onclick="disconnectCamera(4)" style="border-color: #ff4757; color: #ff4757; width: auto; margin-top: 5px;">Отключить</button>
             <span id="cam4-status" class="status-message"></span>
+            <div id="cam4-discovered"></div>
         </div>
+
         <p style="font-size: 0.75em; color: #ffa502; margin-top: 10px;">
-            ⚠️ Камера должна быть в одной Wi-Fi сети с этим компьютером. Поддерживаются RTSP и MJPEG потоки.
+            ⚠️ По MAC-адресу система просканирует локальную сеть и найдёт IP-адрес камеры автоматически.
         </p>
     </div>
 
     <!-- Сетка камер -->
-    <div class="cameras-grid" id="cameras-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+    <div class="cameras-grid" id="cameras-grid">
         <!-- Камера 1 -->
         <div class="camera-feed">
             <div class="camera-header">
@@ -169,7 +265,7 @@
             <div class="camera-view" id="cam1">
                 <span class="camera-placeholder">
                     <span class="icon">🎥</span>
-                    Введите IP камеры и нажмите "Подключить"
+                    Выберите способ подключения
                 </span>
                 <div class="timestamp-overlay" id="ts1"></div>
             </div>
@@ -187,7 +283,7 @@
             <div class="camera-view" id="cam2">
                 <span class="camera-placeholder">
                     <span class="icon">🖥️</span>
-                    Введите IP камеры и нажмите "Подключить"
+                    Выберите способ подключения
                 </span>
                 <div class="timestamp-overlay" id="ts2"></div>
             </div>
@@ -205,7 +301,7 @@
             <div class="camera-view" id="cam3">
                 <span class="camera-placeholder">
                     <span class="icon">🏗️</span>
-                    Введите IP камеры и нажмите "Подключить"
+                    Выберите способ подключения
                 </span>
                 <div class="timestamp-overlay" id="ts3"></div>
             </div>
@@ -215,8 +311,6 @@
         <div class="camera-feed">
             <div class="camera-header">
                 <span><span class="camera-status status-offline" id="led4"></span> CAM-04: Склад</span>
-                <div class="camera-header">
-                <span><span class="camera-status status-offline" id="led4"></span> CAM-04: Склад</span>
                 <div class="camera-controls">
                     <button onclick="snapshot(4)">📸</button>
                     <button onclick="useWebcam(4)">💻 Веб-камера</button>
@@ -225,7 +319,7 @@
             <div class="camera-view" id="cam4">
                 <span class="camera-placeholder">
                     <span class="icon">📦</span>
-                    Введите IP камеры и нажмите "Подключить"
+                    Выберите способ подключения
                 </span>
                 <div class="timestamp-overlay" id="ts4"></div>
             </div>
