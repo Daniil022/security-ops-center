@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR House | Умный дом Купалов Д.К.</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .vr-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .vr-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: 0.3s;
+        }
+        .vr-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+        }
+        .vr-header {
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: #0d1220;
+        }
+        .vr-header .name {
+            font-weight: bold;
+            color: var(--accent);
+        }
+        .vr-header .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .vr-view {
+            height: 280px;
+            background: #000;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .vr-view img, .vr-view video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .vr-view .no-signal {
+            text-align: center;
+            color: #444;
+        }
+        .vr-view .no-signal .icon {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .vr-info {
+            padding: 10px 15px;
+            font-size: 0.8em;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .vr-info span {
+            display: block;
+        }
+        .vr-controls {
+            padding: 10px 15px;
+            display: flex;
+            gap: 8px;
+            border-top: 1px solid var(--border);
+        }
+        .vr-controls button {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.8em;
+            width: auto;
+        }
+        .btn-rtsp {
+            background: #1a2a3a;
+            border-color: #00d2ff;
+            color: #00d2ff;
+        }
+        .btn-http {
+            background: #1a3a1a;
+            border-color: #2ed573;
+            color: #2ed573;
+        }
+        .btn-web {
+            background: #3a351a;
+            border-color: #ffa502;
+            color: #ffa502;
+        }
+        .status-online { background: #2ed573; box-shadow: 0 0 8px #2ed573; }
+        .status-offline { background: #666; }
+        .status-connecting { background: #ffa502; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            width: auto;
+        }
+        .timestamp-overlay {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.75em;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="dashboard-body">
+    <div class="top-bar">
+        <div>
+            <h1>🏠 VR HOUSE — Умный дом</h1>
+            <p style="color: #00d2ff; margin: 0; font-size: 0.85em;">
+                Владелец: Купалов Д.К. | Камер: <span id="active-count">0</span>/4
+            </p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="window.location.href='dashboard.html'" style="width: auto;">📊 ДАШБОРД</button>
+            <button onclick="window.location.href='cameras.html'" style="width: auto;">📹 КАМЕРЫ</button>
+            <button onclick="window.location.href='access-log.html'" style="width: auto;">🔐 СКУД</button>
+            <button onclick="window.location.href='alerts.html'" style="width: auto;">🚨 ОПОВЕЩЕНИЯ</button>
+            <button class="logout" onclick="logout()">ВЫХОД</button>
+        </div>
+    </div>
+
+    <!-- Сетка камер VR House -->
+    <div class="vr-grid" id="vr-grid">
+        <!-- Камера 1: Xiaomi Chuangmi -->
+        <div class="vr-card" id="card1">
+            <div class="vr-header">
+                <span>
+                    <span class="status-dot status-offline" id="dot1"></span>
+                    <span class="name">📷 Камера 1 — Главный вход</span>
+                </span>
+                <span style="font-size:0.8em; color:#888;">Xiaomi Chuangmi</span>
+            </div>
+            <div class="vr-view" id="view1">
+                <div class="no-signal" id="placeholder1">
+                    <span class="icon">🎥</span>
+                    Нажмите подключить
+                </div>
+                <div class="timestamp-overlay" id="ts1"></div>
+            </div>
+            <div class="vr-info">
+                <span>🔗 MAC: 60:7E:A4:15:AD:EB</span>
+                <span>📡 Wi-Fi 5 ГГц</span>
+                <span>🌐 10.1.30.60</span>
+                <span>🆔 chuangmi-camera-021a04</span>
+            </div>
+            <div class="vr-controls">
+                <button class="btn-rtsp" onclick="connectRTSP(1)">📡 RTSP</button>
+                <button class="btn-http" onclick="connectHTTP(1)">🌐 HTTP</button>
+                <button class="btn-web" onclick="connectWebRTC(1)">📹 WebRTC</button>
+                <button onclick="snapshot(1)" style="width:auto;">📸</button>
+            </div>
+        </div>
+
+        <!-- Камера 2: Kenetek Ultra -->
+        <div class="vr-card" id="card2">
+            <div class="vr-header">
+                <span>
+                    <span class="status-dot status-offline" id="dot2"></span>
+                    <span class="name">📷 Камера 2 — Серверная</span>
+                </span>
+                <span style="font-size:0.8em; color:#888;">Kenetek Ultra</span>
+            </div>
+            <div class="vr-view" id="view2">
+                <div class="no-signal" id="placeholder2">
+                    <span class="icon">🖥️</span>
+                    Нажмите подключить
+                </div>
+                <div class="timestamp-overlay" id="ts2"></div>
+            </div>
+            <div class="vr-info">
+                <span>🔗 MAC: B8:27:EB:XX:XX:XX</span>
+                <span>📡 Wi-Fi 5 ГГц</span>
+                <span>🌐 10.1.30.61</span>
+                <span>🆔 Kenetek Ultra</span>
+            </div>
+            <div class="vr-controls">
+                <button class="btn-rtsp" onclick="connectRTSP(2)">📡 RTSP</button>
+                <button class="btn-http" onclick="connectHTTP(2)">🌐 HTTP</button>
+                <button class="btn-web" onclick="connectWebRTC(2)">📹 WebRTC</button>
+                <button onclick="snapshot(2)" style="width:auto;">📸</button>
+            </div>
+        </div>
+
+        <!-- Камера 3: WiFi камера -->
+        <div class="vr-card" id="card3">
+            <div class="vr-header">
+                <span>
+                    <span class="status-dot status-offline" id="dot3"></span>
+                    <span class="name">📷 Камера 3 — Периметр</span>
+                </span>
+                <span style="font-size:0.8em; color:#888;">Wi-Fi Camera</span>
+            </div>
+            <div class="vr-view" id="view3">
+                <div class="no-signal" id="placeholder3">
+                    <span class="icon">🏗️</span>
+                    Введите IP вручную
+                </div>
+                <div class="timestamp-overlay" id="ts3"></div>
+            </div>
+            <div class="vr-info">
+                <span>🔗 MAC: —</span>
+                <span>📡 Wi-Fi</span>
+                <span>🌐 <input type="text" id="ip3" placeholder="IP-адрес" style="width:110px; padding:3px; background:#0d1220; border:1px solid var(--border); color:white; margin:0;"></span>
+                <span><button onclick="connectCustomIP(3)" style="width:auto; padding:3px 8px; font-size:0.7em;">Подкл.</button></span>
+            </div>
+            <div class="vr-controls">
+                <button class="btn-rtsp" onclick="connectRTSP(3, document.getElementById('ip3').value)">📡 RTSP</button>
+                <button class="btn-http" onclick="connectHTTP(3, document.getElementById('ip3').value)">🌐 HTTP</button>
+                <button class="btn-web" onclick="connectWebRTC(3)">📹 WebRTC</button>
+                <button onclick="snapshot(3)" style="width:auto;">📸</button>
+            </div>
+        </div>
+
+        <!-- Камера 4: WiFi камера -->
+        <div class="vr-card" id="card4">
+            <div class="vr-header">
+                <span>
+                    <span class="status-dot status-offline" id="dot4"></span>
+                    <span class="name">📷 Камера 4 — Склад</span>
+                </span>
+                <span style="font-size:0.8em; color:#888;">Wi-Fi Camera</span>
+            </div>
+            <div class="vr-view" id="view4">
+                <div class="no-signal" id="placeholder4">
+                    <span class="icon">📦</span>
+                    Введите IP вручную
+                </div>
+                <div class="timestamp-overlay" id="ts4"></div>
+            </div>
+            <div class="vr-info">
+                <span>🔗 MAC: —</span>
+                <span>📡 Wi-Fi</span>
+                <span>🌐 <input type="text" id="ip4" placeholder="IP-адрес" style="width:110px; padding:3px; background:#0d1220; border:1px solid var(--border); color:white; margin:0;"></span>
+                <span><button onclick="connectCustomIP(4)" style="width:auto; padding:3px 8px; font-size:0.7em;">Подкл.</button></span>
+            </div>
+            <div class="vr-controls">
+                <button class="btn-rtsp" onclick="connectRTSP(4, document.getElementById('ip4').value)">📡 RTSP</button>
+                <button class="btn-http" onclick="connectHTTP(4, document.getElementById('ip4').value)">🌐 HTTP</button>
+                <button class="btn-web" onclick="connectWebRTC(4)">📹 WebRTC</button>
+                <button onclick="snapshot(4)" style="width:auto;">📸</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Журнал -->
+    <div class="widget" style="margin-top: 20px;">
+        <h3>📋 Лог подключений VR House</h3>
+        <table>
+            <thead><tr><th>Время</th><th>Камера</th><th>Событие</th></tr></thead>
+            <tbody id="vr-log"></tbody>
+        </table>
+    </div>
+
+    <script src="js/vr-house.js"></script>
+</body>
+</html>
