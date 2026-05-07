@@ -1,69 +1,67 @@
-// Проверка доступа
-if (!localStorage.getItem('sec_token') || localStorage.getItem('sec_role') !== 'administrator') {
-    window.location.href = 'index.html';
-}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Журнал доступа | СКУД</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard-body">
+    <div class="top-bar">
+        <div>
+            <h1>🔐 ЖУРНАЛ ДОСТУПА (СКУД)</h1>
+            <p style="color: #00d2ff; margin: 0;">Записей: <span id="total-records">0</span></p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="window.location.href='dashboard.html'" style="width: auto;">📊 ДАШБОРД</button>
+            <button class="logout" onclick="logout()">ВЫХОД</button>
+        </div>
+    </div>
 
-// Данные СКУД — журнал доступа (все данные: Купалов Д.К.)
-let accessRecords = JSON.parse(localStorage.getItem('access_records')) || [
-    { time: '2026-05-07 08:30:15', card: 'RFID-7845', employee: 'Купалов Д.К.', zone: 'Главный вход', status: 'Разрешён', method: 'Карта' },
-    { time: '2026-05-07 08:45:22', card: 'RFID-3291', employee: 'Купалов Д.К.', zone: 'Серверная', status: 'Разрешён', method: 'Карта + PIN' },
-    { time: '2026-05-07 09:02:11', card: 'RFID-5555', employee: 'Купалов Д.К.', zone: 'Серверная', status: 'Отклонён', method: 'Карта' },
-    { time: '2026-05-07 09:15:47', card: 'BIO-001', employee: 'Купалов Д.К.', zone: 'Кабинет руководителя', status: 'Разрешён', method: 'Биометрия' },
-    { time: '2026-05-07 10:30:03', card: 'RFID-9999', employee: 'Купалов Д.К.', zone: 'Периметр', status: 'Тревога', method: 'Карта' },
-];
+    <!-- Навигация -->
+    <div class="nav-bar">
+        <button onclick="window.location.href='dashboard.html'">📊 ИНЦИДЕНТЫ</button>
+        <button onclick="window.location.href='cameras.html'">📹 КАМЕРЫ</button>
+        <button onclick="window.location.href='vr-house.html'">🏠 VR HOUSE</button>
+        <button class="active" onclick="window.location.href='access-log.html'">🔐 СКУД</button>
+        <button onclick="window.location.href='alerts.html'">🚨 ОПОВЕЩЕНИЯ</button>
+    </div>
 
-function renderTable() {
-    const tbody = document.getElementById('access-table');
-    const filtered = getFilteredRecords();
-    
-    tbody.innerHTML = filtered.map(r => `
-        <tr>
-            <td>${r.time}</td>
-            <td>${r.card}</td>
-            <td>${r.employee}</td>
-            <td>${r.zone}</td>
-            <td><span class="badge ${r.status === 'Разрешён' ? 'badge-success' : r.status === 'Отклонён' ? 'badge-warning' : 'badge-danger'}">${r.status}</span></td>
-            <td>${r.method}</td>
-        </tr>
-    `).join('');
-    
-    document.getElementById('total-records').textContent = filtered.length;
-}
+    <div class="widget">
+        <div class="filter-bar">
+            <input type="date" id="filter-date" onchange="applyFilters()">
+            <select id="filter-zone" onchange="applyFilters()">
+                <option value="">Все зоны</option>
+                <option>Главный вход</option>
+                <option>Серверная</option>
+                <option>Кабинет руководителя</option>
+                <option>Периметр</option>
+            </select>
+            <select id="filter-status" onchange="applyFilters()">
+                <option value="">Все статусы</option>
+                <option>Разрешён</option>
+                <option>Отклонён</option>
+                <option>Тревога</option>
+            </select>
+            <input type="text" id="filter-card" placeholder="Поиск по карте..." oninput="applyFilters()">
+            <button onclick="exportLog()" style="width: auto; background: var(--bg-card);">📥 ЭКСПОРТ CSV</button>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>Карта/ID</th>
+                    <th>Сотрудник</th>
+                    <th>Зона</th>
+                    <th>Статус</th>
+                    <th>Метод</th>
+                </tr>
+            </thead>
+            <tbody id="access-table"></tbody>
+        </table>
+    </div>
 
-function getFilteredRecords() {
-    const date = document.getElementById('filter-date')?.value || '';
-    const zone = document.getElementById('filter-zone')?.value || '';
-    const status = document.getElementById('filter-status')?.value || '';
-    const card = document.getElementById('filter-card')?.value.toLowerCase() || '';
-    
-    return accessRecords.filter(r => {
-        if (date && !r.time.startsWith(date)) return false;
-        if (zone && r.zone !== zone) return false;
-        if (status && r.status !== status) return false;
-        if (card && !r.card.toLowerCase().includes(card) && !r.employee.toLowerCase().includes(card)) return false;
-        return true;
-    });
-}
-
-function applyFilters() {
-    renderTable();
-}
-
-function exportLog() {
-    const csv = 'Время;Карта;Сотрудник;Зона;Статус;Метод\n' + 
-        getFilteredRecords().map(r => `${r.time};${r.card};${r.employee};${r.zone};${r.status};${r.method}`).join('\n');
-    
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'access-log-export.csv';
-    link.click();
-}
-
-function logout() {
-    localStorage.removeItem('sec_token');
-    localStorage.removeItem('sec_role');
-    window.location.href = 'index.html';
-}
-
-renderTable();
+    <script src="js/access-log.js"></script>
+</body>
+</html>
