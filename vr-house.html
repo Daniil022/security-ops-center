@@ -64,14 +64,14 @@
         }
         .vr-info {
             padding: 10px 15px;
-            font-size: 0.8em;
+            font-size: 0.78em;
             color: #888;
             display: flex;
-            justify-content: space-between;
             flex-wrap: wrap;
+            gap: 6px 15px;
         }
         .vr-info span {
-            display: block;
+            white-space: nowrap;
         }
         .vr-controls {
             padding: 10px 15px;
@@ -134,7 +134,7 @@
         <div>
             <h1>🏠 VR HOUSE — Умный дом</h1>
             <p style="color: #00d2ff; margin: 0; font-size: 0.85em;">
-                Владелец: Купалов Д.К. | Камер: <span id="active-count">0</span>/4
+                Владелец: Купалов Д.К. | Активно: <span id="active-count">0</span>/4
             </p>
         </div>
         <div style="display: flex; gap: 10px;">
@@ -146,9 +146,8 @@
         </div>
     </div>
 
-    <!-- Сетка камер VR House -->
-    <div class="vr-grid" id="vr-grid">
-        <!-- Камера 1: Xiaomi Chuangmi -->
+    <div class="vr-grid">
+        <!-- Камера 1: Xiaomi Chuangmi 10.1.30.60 -->
         <div class="vr-card" id="card1">
             <div class="vr-header">
                 <span>
@@ -159,16 +158,18 @@
             </div>
             <div class="vr-view" id="view1">
                 <div class="no-signal" id="placeholder1">
-                    <span class="icon">🎥</span>
-                    Нажмите подключить
+                    <span class="icon">🎥</span>Подключение...
                 </div>
                 <div class="timestamp-overlay" id="ts1"></div>
             </div>
             <div class="vr-info">
-                <span>🔗 MAC: 60:7E:A4:15:AD:EB</span>
+                <span>🔗 MAC: 60:7e:a4:15:ad:eb</span>
                 <span>📡 Wi-Fi 5 ГГц</span>
                 <span>🌐 10.1.30.60</span>
                 <span>🆔 chuangmi-camera-021a04</span>
+                <span>📶 Сессия: 1 дн. 12:46:23</span>
+                <span>📤 47,3 МБ</span>
+                <span>📥 25,5 МБ</span>
             </div>
             <div class="vr-controls">
                 <button class="btn-rtsp" onclick="connectRTSP(1)">📡 RTSP</button>
@@ -178,27 +179,29 @@
             </div>
         </div>
 
-        <!-- Камера 2: Kenetek Ultra -->
+        <!-- Камера 2: Xiaomi Chuangmi 10.1.30.37 -->
         <div class="vr-card" id="card2">
             <div class="vr-header">
                 <span>
                     <span class="status-dot status-offline" id="dot2"></span>
                     <span class="name">📷 Камера 2 — Серверная</span>
                 </span>
-                <span style="font-size:0.8em; color:#888;">Kenetek Ultra</span>
+                <span style="font-size:0.8em; color:#888;">Xiaomi Chuangmi</span>
             </div>
             <div class="vr-view" id="view2">
                 <div class="no-signal" id="placeholder2">
-                    <span class="icon">🖥️</span>
-                    Нажмите подключить
+                    <span class="icon">🖥️</span>Подключение...
                 </div>
                 <div class="timestamp-overlay" id="ts2"></div>
             </div>
             <div class="vr-info">
-                <span>🔗 MAC: B8:27:EB:XX:XX:XX</span>
+                <span>🔗 MAC: 60:7e:a4:15:c2:5c</span>
                 <span>📡 Wi-Fi 5 ГГц</span>
-                <span>🌐 10.1.30.61</span>
-                <span>🆔 Kenetek Ultra</span>
+                <span>🌐 10.1.30.37</span>
+                <span>🆔 chuangmi.camera.021a04</span>
+                <span>📶 Сессия: 1 дн. 12:46:58</span>
+                <span>📤 46,9 МБ</span>
+                <span>📥 25,5 МБ</span>
             </div>
             <div class="vr-controls">
                 <button class="btn-rtsp" onclick="connectRTSP(2)">📡 RTSP</button>
@@ -208,7 +211,7 @@
             </div>
         </div>
 
-        <!-- Камера 3: WiFi камера -->
+        <!-- Камера 3: Ввод IP -->
         <div class="vr-card" id="card3">
             <div class="vr-header">
                 <span>
@@ -219,16 +222,13 @@
             </div>
             <div class="vr-view" id="view3">
                 <div class="no-signal" id="placeholder3">
-                    <span class="icon">🏗️</span>
-                    Введите IP вручную
+                    <span class="icon">🏗️</span>Введите IP вручную
                 </div>
                 <div class="timestamp-overlay" id="ts3"></div>
             </div>
             <div class="vr-info">
-                <span>🔗 MAC: —</span>
-                <span>📡 Wi-Fi</span>
                 <span>🌐 <input type="text" id="ip3" placeholder="IP-адрес" style="width:110px; padding:3px; background:#0d1220; border:1px solid var(--border); color:white; margin:0;"></span>
-                <span><button onclick="connectCustomIP(3)" style="width:auto; padding:3px 8px; font-size:0.7em;">Подкл.</button></span>
+                <span><button onclick="connectCustomIP(3)" style="width:auto; padding:3px 8px; font-size:0.7em;">▶ Подкл.</button></span>
             </div>
             <div class="vr-controls">
                 <button class="btn-rtsp" onclick="connectRTSP(3, document.getElementById('ip3').value)">📡 RTSP</button>
@@ -238,7 +238,7 @@
             </div>
         </div>
 
-        <!-- Камера 4: WiFi камера -->
+        <!-- Камера 4: Ввод IP -->
         <div class="vr-card" id="card4">
             <div class="vr-header">
                 <span>
@@ -249,16 +249,13 @@
             </div>
             <div class="vr-view" id="view4">
                 <div class="no-signal" id="placeholder4">
-                    <span class="icon">📦</span>
-                    Введите IP вручную
+                    <span class="icon">📦</span>Введите IP вручную
                 </div>
                 <div class="timestamp-overlay" id="ts4"></div>
             </div>
             <div class="vr-info">
-                <span>🔗 MAC: —</span>
-                <span>📡 Wi-Fi</span>
                 <span>🌐 <input type="text" id="ip4" placeholder="IP-адрес" style="width:110px; padding:3px; background:#0d1220; border:1px solid var(--border); color:white; margin:0;"></span>
-                <span><button onclick="connectCustomIP(4)" style="width:auto; padding:3px 8px; font-size:0.7em;">Подкл.</button></span>
+                <span><button onclick="connectCustomIP(4)" style="width:auto; padding:3px 8px; font-size:0.7em;">▶ Подкл.</button></span>
             </div>
             <div class="vr-controls">
                 <button class="btn-rtsp" onclick="connectRTSP(4, document.getElementById('ip4').value)">📡 RTSP</button>
@@ -269,7 +266,6 @@
         </div>
     </div>
 
-    <!-- Журнал -->
     <div class="widget" style="margin-top: 20px;">
         <h3>📋 Лог подключений VR House</h3>
         <table>
