@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Security | Сетевая безопасность</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .service-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .service-card.online { border-color: #2ed573; }
+        .service-card.offline { border-color: #ff4757; }
+        .service-card h3 { margin-bottom: 10px; color: var(--accent); }
+        .service-info { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.85em; }
+        .service-info span { background: #0d1220; padding: 5px 10px; border-radius: 4px; }
+        .scan-btn { width: auto; margin-top: 10px; }
+        .log-line { font-family: 'Courier New', monospace; font-size: 0.8em; padding: 4px 0; border-bottom: 1px solid #1c253a; }
+        .log-critical { color: #ff4757; }
+        .log-warning { color: #ffa502; }
+        .log-info { color: #00d2ff; }
+        .log-success { color: #2ed573; }
+    </style>
+</head>
+<body class="dashboard-body">
+    <div class="top-bar">
+        <div>
+            <h1>🌐 СЕТЕВАЯ БЕЗОПАСНОСТЬ</h1>
+            <p style="color: #00d2ff; margin: 0;">Мониторинг сети | IDS/IPS | SIEM | Логи</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="window.location.href='dashboard.html'" style="width: auto;">📊 ДАШБОРД</button>
+            <button onclick="window.location.href='vr-house.html'" style="width: auto;">🏠 VR HOUSE</button>
+            <button class="logout" onclick="logout()">ВЫХОД</button>
+        </div>
+    </div>
+
+    <!-- Навигация -->
+    <div class="nav-bar">
+        <button onclick="window.location.href='dashboard.html'">📊 ИНЦИДЕНТЫ</button>
+        <button onclick="window.location.href='cameras.html'">📹 КАМЕРЫ</button>
+        <button onclick="window.location.href='vr-house.html'">🏠 VR HOUSE</button>
+        <button onclick="window.location.href='access-log.html'">🔐 СКУД</button>
+        <button onclick="window.location.href='alerts.html'">🚨 ОПОВЕЩЕНИЯ</button>
+        <button class="active" onclick="window.location.href='network.html'">🌐 СЕТЬ</button>
+    </div>
+
+    <!-- VPN Секция -->
+    <div class="service-card online">
+        <h3>🔒 VPN-Сервер (WireGuard)</h3>
+        <div class="service-info">
+            <span>🟢 Статус: Активен</span>
+            <span>👥 Клиентов: 3</span>
+            <span>📡 Порт: 51820</span>
+            <span>🔑 Ключ: xT9k...mP2w</span>
+        </div>
+        <button class="scan-btn" onclick="scanVPNClients()">🔄 Обновить список клиентов</button>
+        <div id="vpn-clients" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="service-card online">
+        <h3>🔒 VPN-Сервер (OpenVPN)</h3>
+        <div class="service-info">
+            <span>🟢 Статус: Активен</span>
+            <span>👥 Клиентов: 1</span>
+            <span>📡 Порт: 1194</span>
+            <span>🔐 Протокол: UDP</span>
+        </div>
+    </div>
+
+    <!-- Файрвол -->
+    <div class="service-card online">
+        <h3>🛡️ Файрвол (pfSense)</h3>
+        <div class="service-info">
+            <span>🟢 Статус: Активен</span>
+            <span>📊 Правил: 47</span>
+            <span>🚫 Заблокировано: 1,247 атак</span>
+            <span>📅 Uptime: 15 дн.</span>
+        </div>
+    </div>
+
+    <!-- IDS/IPS -->
+    <div class="service-card online">
+        <h3>🔍 IDS/IPS (Suricata)</h3>
+        <div class="service-info">
+            <span>🟢 Статус: Активен</span>
+            <span>⚠️ Угроз найдено: 23</span>
+            <span>🔄 Правил: 3,891</span>
+            <span>📅 Обновлено: 2ч назад</span>
+        </div>
+        <button class="scan-btn" onclick="scanThreats()">🔍 Сканировать угрозы</button>
+        <div id="threats-result" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="service-card offline">
+        <h3>🔍 IDS/IPS (Snort)</h3>
+        <div class="service-info">
+            <span>🔴 Статус: Неактивен</span>
+            <span>Резервная система</span>
+        </div>
+    </div>
+
+    <!-- SIEM -->
+    <div class="service-card online">
+        <h3>📊 SIEM (Graylog)</h3>
+        <div class="service-info">
+            <span>🟢 Статус: Активен</span>
+            <span>📥 Логов: 1.2M</span>
+            <span>📊 Индексов: 5</span>
+            <span>💾 Размер: 3.2 ГБ</span>
+        </div>
+    </div>
+
+    <!-- Мониторинг сети -->
+    <div class="service-card online">
+        <h3>📡 Мониторинг сети (Zabbix)</h3>
+        <div class="service-info">
+            <span>🟢 Статус: Активен</span>
+            <span>🖥️ Хостов: 24</span>
+            <span>📊 Триггеров: 12</span>
+            <span>✅ Доступность: 99.7%</span>
+        </div>
+        <button class="scan-btn" onclick="scanNetwork()">🔍 Сканировать сеть</button>
+        <div id="network-result" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- Мониторинг устройств -->
+    <div class="service-card" id="device-monitor">
+        <h3>🖥️ МОНИТОРИНГ УСТРОЙСТВ</h3>
+        <button class="scan-btn" onclick="scanAllDevices()">🔍 Найти все устройства в сети</button>
+        <div id="device-list" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- Журнал событий Windows -->
+    <div class="service-card">
+        <h3>🪟 Журнал событий Windows</h3>
+        <button class="scan-btn" onclick="loadWindowsLogs()">📥 Загрузить демо-логи</button>
+        <div id="windows-logs" style="margin-top:10px; max-height:300px; overflow-y:auto;"></div>
+    </div>
+
+    <!-- Журнал событий Linux -->
+    <div class="service-card">
+        <h3>🐧 Журнал событий Linux</h3>
+        <button class="scan-btn" onclick="loadLinuxLogs()">📥 Загрузить демо-логи</button>
+        <div id="linux-logs" style="margin-top:10px; max-height:300px; overflow-y:auto;"></div>
+    </div>
+
+    <script src="js/network.js"></script>
+</body>
+</html>
