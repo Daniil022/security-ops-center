@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Журнал доступа | СКУД</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dashboard-body">
+    <div class="top-bar">
+        <div>
+            <h1>🔐 ЖУРНАЛ ДОСТУПА (СКУД)</h1>
+            <p style="color: #00d2ff; margin: 0;">Записей: <span id="total-records">0</span></p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="window.location.href='dashboard.html'" style="width: auto;">📊 ДАШБОРД</button>
+            <button onclick="window.location.href='cameras.html'" style="width: auto;">📹 КАМЕРЫ</button>
+            <button class="logout" onclick="logout()">ВЫХОД</button>
+        </div>
+    </div>
+
+    <div class="widget">
+        <div class="filter-bar">
+            <input type="date" id="filter-date" onchange="applyFilters()">
+            <select id="filter-zone" onchange="applyFilters()">
+                <option value="">Все зоны</option>
+                <option>Главный вход</option>
+                <option>Серверная</option>
+                <option>Кабинет руководителя</option>
+                <option>Периметр</option>
+            </select>
+            <select id="filter-status" onchange="applyFilters()">
+                <option value="">Все статусы</option>
+                <option>Разрешён</option>
+                <option>Отклонён</option>
+                <option>Тревога</option>
+            </select>
+            <input type="text" id="filter-card" placeholder="Поиск по карте..." oninput="applyFilters()">
+            <button onclick="exportLog()" style="width: auto; background: var(--bg-card);">📥 ЭКСПОРТ CSV</button>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>Карта/ID</th>
+                    <th>Сотрудник</th>
+                    <th>Зона</th>
+                    <th>Статус</th>
+                    <th>Метод</th>
+                </tr>
+            </thead>
+            <tbody id="access-table"></tbody>
+        </table>
+    </div>
+
+    <script src="js/access-log.js"></script>
+</body>
+</html>
