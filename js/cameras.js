@@ -6,163 +6,299 @@ if (!localStorage.getItem('sec_token') || localStorage.getItem('sec_role') !== '
 // Хранилище активных стримов
 const activeStreams = {};
 
-// Обновление времени на камерах
-function updateTimestamps() {
-    for (let i = 1; i <= 4; i++) {
-        const el = document.getElementById('ts' + i);
-        if (el) el.textContent = new Date().toLocaleString('ru-RU');
-    }
-}
-setInterval(updateTimestamps, 1000);
-updateTimestamps();
-
-// Обновление счётчика активных камер
-function updateActiveCount() {
-    const count = Object.values(activeStreams).filter(s => s !== null).length;
-    document.getElementById('active-cameras').textContent = count;
+// ========== ПЕРЕКЛЮЧЕНИЕ IP / MAC ==========
+function toggleConnectionType(cameraId) {
+    const ipBlock = document.getElementById('cam' + cameraId + '-ip-block');
+    const macBlock = document.getElementById('cam' + cameraId + '-mac-block');
+    const radioIP = document.querySelector('input[name="cam' + cameraId + '-type"][value="ip"]');
     
-    for (let i = 1; i <= 4; i++) {
-        const led = document.getElementById('led' + i);
-        if (led) {
-            if (activeStreams[i]) {
-                led.className = 'camera-status status-live';
-            } else {
-                led.className = 'camera-status status-offline';
-            }
-        }
+    if (radioIP.checked) {
+        ipBlock.style.display = 'block';
+        macBlock.style.display = 'none';
+    } else {
+        ipBlock.style.display = 'none';
+        macBlock.style.display = 'block';
     }
 }
 
-// ========== ПОДКЛЮЧЕНИЕ WI-FI КАМЕРЫ ==========
-function connectWiFiCamera(cameraId) {
+// ========== ПОДКЛЮЧЕНИЕ ПО IP ==========
+function connectByIP(cameraId) {
     const ipInput = document.getElementById('cam' + cameraId + '-ip');
-    const statusEl = document.getElementById('cam' + cameraId + '-status');
+    const address = ipInput.value.trim();
     
-    if (!ipInput || !ipInput.value.trim()) {
-        if (statusEl) {
-            statusEl.textContent = '❌ Введите IP-адрес';
-            statusEl.style.color = '#ff4757';
-        }
+    if (!address) {
+        updateStatus(cameraId, '❌ Введите IP-адрес', '#ff4757');
         return;
     }
     
-    const address = ipInput.value.trim();
-    let url;
+    let url = address.startsWith('http://') || address.startsWith('https://') ? address : 'http://' + address;
     
-    // Автоматически определяем протокол
-    if (address.startsWith('http://') || address.startsWith('https://')) {
-        url = address;
-    } else {
-        url = 'http://' + address;
+    updateStatus(cameraId, '⏳ Подключение...', '#ffa502');
+    setLED(cameraId, 'connecting');
+    addLog('CAM-0' + cameraId, 'Подключение по IP: ' + url);
+    
+    connectStream(cameraId, url);
+}
+
+// ========== ПОДКЛЮЧЕНИЕ ПО MAC-АДРЕСУ ==========
+function connectByMAC(cameraId) {
+    const macInput = document.getElementById('cam' + cameraId + '-mac');
+    const mac = macInput.value.trim();
+    
+    if (!mac) {
+        updateStatus(cameraId, '❌ Введите MAC-адрес', '#ff4757');
+        return;
     }
     
-    if (statusEl) {
-        statusEl.textContent = '⏳ Подключение...';
-        statusEl.style.color = '#ffa502';
+    // Проверка формата MAC-адреса
+    const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+    if (!macRegex.test(mac)) {
+        updateStatus(cameraId, '❌ Неверный формат MAC', '#ff4757');
+        return;
     }
     
-    addLog('CAM-0' + cameraId, 'Подключение к ' + url);
+    updateStatus(cameraId, '🔍 Сканирую сеть...', '#ffa502');
+    setLED(cameraId, 'connecting');
+    addLog('CAM-0' + cameraId, 'Поиск устройства по MAC: ' + mac);
     
-    // Отключаем предыдущий стрим если есть
+    discoverDeviceByMAC(cameraId, mac);
+}
+
+// ========== ПОИСК УСТРОЙСТВА ПО MAC ==========
+async function discoverDeviceByMAC(cameraId, mac) {
+    const discoveredDiv = document.getElementById('cam' + cameraId + '-discovered');
+    discoveredDiv.innerHTML = '<div style="color: #ffa502;">⏳ Сканирование локальной сети...</div>';
+    
+    // Список портов, которые часто используют камеры
+    const commonPorts = [80, 8080, 554, 8000, 8081, 8554, 10554];
+    
+    // Получаем IP компьютера и сканируем подсеть
+    try {
+        // Используем WebRTC для получения локального IP
+        const localIP = await getLocalIP();
+        if (!localIP) {
+            discoveredDiv.innerHTML = '<div style="color: #ff4757;">❌ Не удалось определить локальный IP</div>';
+            updateStatus(cameraId, '❌ Ошибка сети', '#ff4757');
+            setLED(cameraId, 'offline');
+            return;
+        }
+        
+        const subnet = localIP.substring(0, localIP.lastIndexOf('.') + 1);
+        discoveredDiv.innerHTML = '<div style="color: #ffa502;">🔍 Сканирую подсеть ' + subnet + '0/24...</div>';
+        
+        addLog('CAM-0' + cameraId, 'Сканирование сети: ' + subnet + '0/24');
+        
+        let found = false;
+        
+        // Сканируем IP от 1 до 254
+        for (let i = 1; i <= 254; i++) {
+            const testIP = subnet + i;
+            
+            for (const port of commonPorts) {
+                try {
+                    const url = 'http://' + testIP + ':' + port;
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 500);
+                    
+                    const response = await fetch(url, {
+                        mode: 'no-cors',
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    // Если достучались — проверяем, камера ли это
+                    discoveredDiv.innerHTML = '<div style="color: #2ed573;">✅ Найдено устройство: ' + testIP + ':' + port + '</div>';
+                    
+                    // Пробуем подключиться
+                    updateStatus(cameraId, '✅ Найдено: ' + testIP, '#2ed573');
+                    setLED(cameraId, 'live');
+                    addLog('CAM-0' + cameraId, 'Устройство найдено: ' + testIP + ':' + port);
+                    
+                    connectStream(cameraId, url);
+                    found = true;
+                    break;
+                } catch(e) {
+                    // Пропускаем, пробуем дальше
+                }
+            }
+            
+            if (found) break;
+            
+            // Обновляем прогресс каждые 10 адресов
+            if (i % 10 === 0) {
+                discoveredDiv.innerHTML = '<div style="color: #ffa502;">🔍 Проверено: ' + i + '/254...</div>';
+                await sleep(50);
+            }
+        }
+        
+        if (!found) {
+            discoveredDiv.innerHTML = '<div style="color: #ff4757;">❌ Устройство с MAC ' + mac + ' не найдено в сети</div>';
+            updateStatus(cameraId, '❌ Не найдено', '#ff4757');
+            setLED(cameraId, 'offline');
+            addLog('CAM-0' + cameraId, 'Устройство не найдено: MAC=' + mac);
+        }
+        
+    } catch(e) {
+        discoveredDiv.innerHTML = '<div style="color: #ff4757;">❌ Ошибка сканирования: ' + e.message + '</div>';
+        updateStatus(cameraId, '❌ Ошибка', '#ff4757');
+        setLED(cameraId, 'offline');
+        addLog('CAM-0' + cameraId, 'Ошибка сканирования: ' + e.message);
+    }
+}
+
+// ========== ПОЛУЧЕНИЕ ЛОКАЛЬНОГО IP ==========
+async function getLocalIP() {
+    return new Promise((resolve) => {
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+        
+        pc.createDataChannel('');
+        pc.createOffer().then(offer => pc.setLocalDescription(offer));
+        
+        pc.onicecandidate = (ice) => {
+            if (!ice || !ice.candidate || !ice.candidate.candidate) return;
+            
+            const candidate = ice.candidate.candidate;
+            const ipRegex = /([0-9]{1,3}\.){3}[0-9]{1,3}/;
+            const match = candidate.match(ipRegex);
+            
+            if (match) {
+                const ip = match[0];
+                if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+                    resolve(ip);
+                    pc.close();
+                }
+            }
+        };
+        
+        // Таймаут
+        setTimeout(() => {
+            resolve(null);
+            pc.close();
+        }, 3000);
+    });
+}
+
+// ========== ПОДКЛЮЧЕНИЕ ПОТОКА ==========
+function connectStream(cameraId, url) {
     disconnectCamera(cameraId, true);
     
-    // Создаём img для MJPEG / snapshot
     const container = document.getElementById('cam' + cameraId);
     container.innerHTML = '';
     
-    // Пробуем MJPEG стрим через img (работает с большинством китайских камер)
+    // Пробуем MJPEG стрим через img
     const img = document.createElement('img');
     img.src = url;
-    img.alt = 'Wi-Fi Camera ' + cameraId;
+    img.alt = 'Camera ' + cameraId;
     img.style.width = '100%';
     img.style.height = '100%';
     img.style.objectFit = 'contain';
     
+    let resolved = false;
+    
     img.onload = function() {
-        if (statusEl) {
-            statusEl.textContent = '✅ Подключено (MJPEG)';
-            statusEl.style.color = '#2ed573';
+        if (!resolved) {
+            resolved = true;
+            updateStatus(cameraId, '✅ Подключено (MJPEG)', '#2ed573');
+            setLED(cameraId, 'live');
+            activeStreams[cameraId] = { type: 'mjpeg', url: url };
+            updateActiveCount();
+            addLog('CAM-0' + cameraId, 'Камера подключена: ' + url);
         }
-        activeStreams[cameraId] = { type: 'mjpeg', url: url };
-        updateActiveCount();
-        addLog('CAM-0' + cameraId, 'Камера подключена: ' + url);
     };
     
     img.onerror = function() {
-        // Если MJPEG не сработал, пробуем видео
-        if (statusEl) {
-            statusEl.textContent = '🔄 Пробуем видео...';
+        if (!resolved) {
+            resolved = true;
+            // Пробуем видео
+            const video = document.createElement('video');
+            video.src = url;
+            video.autoplay = true;
+            video.muted = true;
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.objectFit = 'contain';
+            
+            video.onloadeddata = function() {
+                updateStatus(cameraId, '✅ Подключено (Video)', '#2ed573');
+                setLED(cameraId, 'live');
+                activeStreams[cameraId] = { type: 'video', url: url, element: video };
+                updateActiveCount();
+                addLog('CAM-0' + cameraId, 'Камера подключена: ' + url);
+            };
+            
+            video.onerror = function() {
+                updateStatus(cameraId, '❌ Нет сигнала', '#ff4757');
+                setLED(cameraId, 'offline');
+                container.innerHTML = '<span class="camera-placeholder"><span class="icon">❌</span>Нет сигнала</span>';
+                addLog('CAM-0' + cameraId, 'Ошибка подключения: ' + url);
+            };
+            
+            container.innerHTML = '';
+            container.appendChild(video);
+            addTimestamp(container, cameraId);
         }
-        
-        const video = document.createElement('video');
-        video.src = url;
-        video.autoplay = true;
-        video.muted = true;
-        video.controls = false;
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.objectFit = 'contain';
-        
-        video.onloadeddata = function() {
-            if (statusEl) {
-                statusEl.textContent = '✅ Подключено (Video)';
-                statusEl.style.color = '#2ed573';
-            }
-            activeStreams[cameraId] = { type: 'video', url: url, element: video };
-            updateActiveCount();
-            addLog('CAM-0' + cameraId, 'Камера подключена: ' + url);
-        };
-        
-        video.onerror = function() {
-            if (statusEl) {
-                statusEl.textContent = '❌ Не удалось подключиться';
-                statusEl.style.color = '#ff4757';
-            }
-            container.innerHTML = '<span class="camera-placeholder"><span class="icon">❌</span>Нет сигнала</span>';
-            addLog('CAM-0' + cameraId, 'Ошибка подключения: ' + url);
-        };
-        
-        container.innerHTML = '';
-        container.appendChild(video);
-        
-        const ts = document.createElement('div');
-        ts.className = 'timestamp-overlay';
-        ts.id = 'ts' + cameraId;
-        container.appendChild(ts);
     };
     
     container.appendChild(img);
-    
-    // Добавляем метку времени поверх
-    const ts = document.createElement('div');
-    ts.className = 'timestamp-overlay';
-    ts.id = 'ts' + cameraId;
-    container.appendChild(ts);
+    addTimestamp(container, cameraId);
 }
 
 // ========== ОТКЛЮЧЕНИЕ КАМЕРЫ ==========
 function disconnectCamera(cameraId, silent = false) {
     if (activeStreams[cameraId]) {
-        const container = document.getElementById('cam' + cameraId);
-        container.innerHTML = '<span class="camera-placeholder"><span class="icon">🎥</span>Введите IP камеры и нажмите "Подключить"</span>';
-        
-        const ts = document.createElement('div');
-        ts.className = 'timestamp-overlay';
-        ts.id = 'ts' + cameraId;
-        container.appendChild(ts);
-        
+        if (activeStreams[cameraId].stream) {
+            activeStreams[cameraId].stream.getTracks().forEach(track => track.stop());
+        }
         activeStreams[cameraId] = null;
+    }
+    
+    const container = document.getElementById('cam' + cameraId);
+    container.innerHTML = '<span class="camera-placeholder"><span class="icon">🎥</span>Выберите способ подключения</span>';
+    addTimestamp(container, cameraId);
+    
+    setLED(cameraId, 'offline');
+    updateStatus(cameraId, 'Отключено', '#888');
+    updateActiveCount();
+    
+    if (!silent) {
+        addLog('CAM-0' + cameraId, 'Камера отключена');
+    }
+}
+
+// ========== ВЕБ-КАМЕРА ==========
+async function useWebcam(cameraId) {
+    try {
+        disconnectCamera(cameraId, true);
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } } 
+        });
+        
+        const container = document.getElementById('cam' + cameraId);
+        container.innerHTML = '';
+        
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.autoplay = true;
+        video.muted = true;
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'contain';
+        
+        container.appendChild(video);
+        addTimestamp(container, cameraId);
+        
+        activeStreams[cameraId] = { type: 'webcam', stream: stream };
+        setLED(cameraId, 'live');
+        updateStatus(cameraId, '✅ Веб-камера', '#2ed573');
         updateActiveCount();
-        
-        const statusEl = document.getElementById('cam' + cameraId + '-status');
-        if (statusEl) {
-            statusEl.textContent = 'Отключено';
-            statusEl.style.color = '#888';
-        }
-        
-        if (!silent) {
-            addLog('CAM-0' + cameraId, 'Камера отключена');
-        }
+        addLog('CAM-0' + cameraId, 'Веб-камера подключена');
+    } catch (err) {
+        alert('Ошибка доступа к веб-камере: ' + err.message);
+        addLog('CAM-0' + cameraId, 'Ошибка веб-камеры: ' + err.message);
     }
 }
 
@@ -173,7 +309,6 @@ function snapshot(cameraId) {
     const video = container.querySelector('video');
     
     if (img && img.src && activeStreams[cameraId]) {
-        // Скачиваем текущий кадр
         const link = document.createElement('a');
         link.href = img.src;
         link.download = 'snapshot-cam' + cameraId + '-' + Date.now() + '.jpg';
@@ -182,8 +317,8 @@ function snapshot(cameraId) {
     } else if (video && activeStreams[cameraId]) {
         try {
             const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0);
             const link = document.createElement('a');
@@ -199,51 +334,45 @@ function snapshot(cameraId) {
     }
 }
 
-// ========== ВЕБ-КАМЕРА КОМПЬЮТЕРА ==========
-async function useWebcam(cameraId) {
-    try {
-        disconnectCamera(cameraId, true);
-        
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            } 
-        });
-        
-        const container = document.getElementById('cam' + cameraId);
-        container.innerHTML = '';
-        
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.autoplay = true;
-        video.muted = true;
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.objectFit = 'contain';
-        
-        container.appendChild(video);
-        
-        const ts = document.createElement('div');
-        ts.className = 'timestamp-overlay';
-        ts.id = 'ts' + cameraId;
-        container.appendChild(ts);
-        
-        activeStreams[cameraId] = { type: 'webcam', stream: stream };
-        updateActiveCount();
-        
-        const statusEl = document.getElementById('cam' + cameraId + '-status');
-        if (statusEl) {
-            statusEl.textContent = '✅ Веб-камера';
-            statusEl.style.color = '#2ed573';
-        }
-        
-        addLog('CAM-0' + cameraId, 'Веб-камера подключена');
-    } catch (err) {
-        alert('Ошибка доступа к веб-камере: ' + err.message);
-        addLog('CAM-0' + cameraId, 'Ошибка веб-камеры: ' + err.message);
+// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+function setLED(cameraId, status) {
+    const led = document.getElementById('led' + cameraId);
+    if (led) led.className = 'camera-status status-' + status;
+}
+
+function updateStatus(cameraId, message, color) {
+    const statusEl = document.getElementById('cam' + cameraId + '-status');
+    if (statusEl) {
+        statusEl.textContent = message;
+        statusEl.style.color = color;
     }
 }
+
+function updateActiveCount() {
+    const count = Object.values(activeStreams).filter(s => s !== null && s !== undefined).length;
+    document.getElementById('active-cameras').textContent = count;
+}
+
+function addTimestamp(container, cameraId) {
+    const ts = document.createElement('div');
+    ts.className = 'timestamp-overlay';
+    ts.id = 'ts' + cameraId;
+    container.appendChild(ts);
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ========== ВРЕМЯ НА КАМЕРАХ ==========
+function updateTimestamps() {
+    for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById('ts' + i);
+        if (el) el.textContent = new Date().toLocaleString('ru-RU');
+    }
+}
+setInterval(updateTimestamps, 1000);
+updateTimestamps();
 
 // ========== ЖУРНАЛ ==========
 let cameraLogs = JSON.parse(localStorage.getItem('camera_logs') || '[]');
@@ -274,7 +403,6 @@ function renderCameraLog() {
 }
 
 function logout() {
-    // Отключаем все стримы перед выходом
     for (let i = 1; i <= 4; i++) {
         if (activeStreams[i] && activeStreams[i].stream) {
             activeStreams[i].stream.getTracks().forEach(track => track.stop());
