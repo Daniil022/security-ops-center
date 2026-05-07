@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Access Gateway | Вход в SOC</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="logo-space">
+            <img src="assets/logo.svg" alt="SOC Logo" width="80" height="80" style="margin-bottom: 15px;">
+            <h1>S.H.I.E.L.D.</h1>
+            <p>Security Hub for Intelligence &amp; Event Logging Division</p>
+        </div>
+        <div id="login-form">
+            <div class="input-group">
+                <label>Идентификатор</label>
+                <input type="text" id="username" placeholder="Оперативный позывной" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label>Код доступа</label>
+                <input type="password" id="password" placeholder="••••••••" autocomplete="off">
+            </div>
+            <button onclick="authenticate()">Аутентификация</button>
+            <div id="error-message" class="error"></div>
+        </div>
+        <div class="footer-info">
+            Время сервера: <span id="utc-time"></span><br>
+            Только для авторизованного персонала
+        </div>
+    </div>
+    <script src="js/auth.js"></script>
+</body>
+</html>
