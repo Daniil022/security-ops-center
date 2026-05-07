@@ -21,4 +21,49 @@ function renderTable() {
             <td>${r.time}</td>
             <td>${r.card}</td>
             <td>${r.employee}</td>
-            <td>
+            <td>${r.zone}</td>
+            <td><span class="badge ${r.status === 'Разрешён' ? 'badge-success' : r.status === 'Отклонён' ? 'badge-warning' : 'badge-danger'}">${r.status}</span></td>
+            <td>${r.method}</td>
+        </tr>
+    `).join('');
+    
+    document.getElementById('total-records').textContent = filtered.length;
+}
+
+function getFilteredRecords() {
+    const date = document.getElementById('filter-date').value;
+    const zone = document.getElementById('filter-zone').value;
+    const status = document.getElementById('filter-status').value;
+    const card = document.getElementById('filter-card').value.toLowerCase();
+    
+    return accessRecords.filter(r => {
+        if (date && !r.time.startsWith(date)) return false;
+        if (zone && r.zone !== zone) return false;
+        if (status && r.status !== status) return false;
+        if (card && !r.card.toLowerCase().includes(card) && !r.employee.toLowerCase().includes(card)) return false;
+        return true;
+    });
+}
+
+function applyFilters() {
+    renderTable();
+}
+
+function exportLog() {
+    const csv = 'Время;Карта;Сотрудник;Зона;Статус;Метод\n' + 
+        getFilteredRecords().map(r => `${r.time};${r.card};${r.employee};${r.zone};${r.status};${r.method}`).join('\n');
+    
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'access-log-export.csv';
+    link.click();
+}
+
+function logout() {
+    localStorage.removeItem('sec_token');
+    localStorage.removeItem('sec_role');
+    window.location.href = 'index.html';
+}
+
+renderTable();
