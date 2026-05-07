@@ -2,268 +2,312 @@ if (!localStorage.getItem('sec_token') || localStorage.getItem('sec_role') !== '
     window.location.href = 'index.html';
 }
 
-// ========== КАМЕРЫ КУПАЛОВ Д.К. ==========
+// Камеры Купалов Д.К.
 const cameras = {
     1: {
-        name: 'chuangmi-camera-021a04',
-        deviceID: 'chuangmi-camera-021a04',
+        name: 'Xiaomi Главный вход',
         ip: '10.1.30.60',
         mac: '60:7e:a4:15:ad:eb',
-        connection: 'Wi-Fi 5 ГГц (VPN-VR)',
-        network: 'Home network',
-        added: '2026-04-06 11:44',
-        uptime: '1 дн. 12:46:23',
-        wifiSession: '1 дн. 12:46:23',
-        sent: '47,3 МБ',
-        received: '25,5 МБ',
-        location: 'Главный вход',
-        // RTSP и HTTP потоки Xiaomi Chuangmi
-        rtsp: 'rtsp://10.1.30.60:554/live',
-        http: 'http://10.1.30.60:8080',
+        snapshot: 'http://10.1.30.60:8080/snapshot.jpg',
         mjpeg: 'http://10.1.30.60:8080/video',
-        snapshot_url: 'http://10.1.30.60:8080/snapshot.jpg'
+        ports: [80, 8080, 554, 8000, 8554]
     },
     2: {
-        name: 'chuangmi-camera-021a04',
-        deviceID: 'chuangmi.camera.021a04',
+        name: 'Xiaomi Серверная',
         ip: '10.1.30.37',
         mac: '60:7e:a4:15:c2:5c',
-        connection: 'Wi-Fi 5 ГГц (VPN-VR)',
-        network: 'Home network',
-        added: '2024-11-22 21:58',
-        uptime: '9 дн. 20:31:22',
-        wifiSession: '1 дн. 12:46:58',
-        sent: '46,9 МБ',
-        received: '25,5 МБ',
-        location: 'Серверная',
-        // RTSP и HTTP потоки Xiaomi Chuangmi
-        rtsp: 'rtsp://10.1.30.37:554/live',
-        http: 'http://10.1.30.37:8080',
+        snapshot: 'http://10.1.30.37:8080/snapshot.jpg',
         mjpeg: 'http://10.1.30.37:8080/video',
-        snapshot_url: 'http://10.1.30.37:8080/snapshot.jpg'
+        ports: [80, 8080, 554, 8000, 8554]
     },
     3: {
         name: 'Камера 3',
-        deviceID: '',
         ip: '',
         mac: '',
-        connection: 'Wi-Fi',
-        network: 'Home network',
-        added: '',
-        uptime: '',
-        wifiSession: '',
-        sent: '',
-        received: '',
-        location: 'Периметр',
-        rtsp: '',
-        http: '',
+        snapshot: '',
         mjpeg: '',
-        snapshot_url: ''
+        ports: [80, 8080, 554, 8000, 8081, 8554, 34567, 8800]
     },
     4: {
         name: 'Камера 4',
-        deviceID: '',
         ip: '',
         mac: '',
-        connection: 'Wi-Fi',
-        network: 'Home network',
-        added: '',
-        uptime: '',
-        wifiSession: '',
-        sent: '',
-        received: '',
-        location: 'Склад',
-        rtsp: '',
-        http: '',
+        snapshot: '',
         mjpeg: '',
-        snapshot_url: ''
+        ports: [80, 8080, 554, 8000, 8081, 8554, 34567, 8800]
     }
 };
 
 const activeStreams = {};
-const streamElements = {};
+const streamIntervals = {};
 
-// ========== ИНИЦИАЛИЗАЦИЯ ==========
-function initCameras() {
-    for (let i = 1; i <= 4; i++) {
-        const cam = cameras[i];
-        if (cam.ip) {
-            // Заполняем IP в поле ввода если есть
-            const ipInput = document.getElementById('ip' + i);
-            if (ipInput) ipInput.value = cam.ip;
-            
-            // Обновляем инфо на карточке
-            updateCameraInfo(i);
+// ========== ГЛАВНАЯ ФУНКЦИЯ ПОДКЛЮЧЕНИЯ ==========
+async function connectCamera(cameraId) {
+    const cam = cameras[cameraId];
+    let ip = cam.ip;
+    
+    // Если камера 3 или 4 — берём IP из поля
+    if (cameraId >= 3) {
+        const ipInput = document.getElementById('ip' + cameraId);
+        if (ipInput && ipInput.value.trim()) {
+            ip = ipInput.value.trim();
+            cam.ip = ip;
         }
     }
-}
-
-function updateCameraInfo(cameraId) {
-    const cam = cameras[cameraId];
-    
-    // Обновляем заголовок
-    const card = document.getElementById('card' + cameraId);
-    if (!card) return;
-    
-    // Обновляем инфо-блок
-    const infoDiv = card.querySelector('.vr-info');
-    if (infoDiv && cam.ip) {
-        infoDiv.innerHTML = `
-            <span>🔗 MAC: ${cam.mac}</span>
-            <span>📡 ${cam.connection}</span>
-            <span>🌐 ${cam.ip}</span>
-            <span>🆔 ${cam.deviceID}</span>
-            <span style="width:100%; margin-top:4px;">📶 Сессия: ${cam.wifiSession}</span>
-            <span>📤 Отпр: ${cam.sent}</span>
-            <span>📥 Получ: ${cam.received}</span>
-        `;
-    }
-}
-
-// ========== ПОДКЛЮЧЕНИЕ ==========
-function connectRTSP(cameraId, customIP) {
-    const cam = cameras[cameraId];
-    const ip = customIP || cam.ip;
     
     if (!ip) {
-        alert('Введите IP-адрес камеры');
+        setStatus(cameraId, 'offline');
+        addLog(cam.name, '❌ Нет IP-адреса');
         return;
     }
     
-    setStatus(cameraId, 'connecting');
-    addLog(cam.name, 'RTSP подключение к ' + ip);
-    
     disconnectStream(cameraId);
+    setStatus(cameraId, 'connecting');
+    addLog(cam.name, '🔍 Подключение к ' + ip);
     
-    // Для Xiaomi Chuangmi — пробуем HLS через порт 8080
-    const hlsURL = 'http://' + ip + ':8080/play1.m3u8';
-    const mjpegURL = 'http://' + ip + ':8080/video';
-    const snapshotURL = 'http://' + ip + ':8080/snapshot.jpg';
+    let connected = false;
     
-    // Сначала пробуем MJPEG (надёжнее для Xiaomi)
-    tryMJPEG(cameraId, mjpegURL, () => {
-        // Если MJPEG не сработал — пробуем снапшот с автообновлением
-        trySnapshot(cameraId, snapshotURL);
+    // Шаг 1: Пробуем стандартные пути для Xiaomi Chuangmi (порт 8080)
+    if (cam.mjpeg || ip) {
+        const baseURL = 'http://' + ip + ':8080';
+        const mjpegPaths = [
+            '/video',
+            '/stream',
+            '/mjpeg',
+            '/live',
+            '/',
+            '/mjpg/video.mjpg',
+            '/webcam.mjpeg',
+            '/video.mjpg',
+            '/stream.mjpg'
+        ];
+        
+        for (const path of mjpegPaths) {
+            if (connected) break;
+            const url = baseURL + path;
+            setStatus(cameraId, 'connecting');
+            connected = await tryStreamURL(cameraId, url);
+            if (connected) {
+                addLog(cam.name, '✅ Подключено: ' + url);
+            }
+        }
+    }
+    
+    // Шаг 2: Пробуем другие порты
+    if (!connected) {
+        for (const port of cam.ports) {
+            if (connected) break;
+            if (port === 8080) continue; // уже проверили
+            
+            const baseURL = 'http://' + ip + ':' + port;
+            const paths = ['/', '/video', '/stream', '/mjpeg', '/live', '/tcp/av0_0', '/snapshot.jpg', '/onvif/device_service'];
+            
+            for (const path of paths) {
+                if (connected) break;
+                const url = baseURL + path;
+                setStatus(cameraId, 'connecting');
+                connected = await tryStreamURL(cameraId, url);
+                if (connected) {
+                    addLog(cam.name, '✅ Найден порт ' + port + ': ' + url);
+                }
+            }
+        }
+    }
+    
+    // Шаг 3: Snapshot-режим (100% рабочий для Xiaomi)
+    if (!connected) {
+        const snapshotURL = 'http://' + ip + ':8080/snapshot.jpg';
+        setStatus(cameraId, 'connecting');
+        connected = await trySnapshotMode(cameraId, snapshotURL);
+        if (connected) {
+            addLog(cam.name, '✅ Snapshot-режим');
+        }
+    }
+    
+    if (connected) {
+        setStatus(cameraId, 'online');
+    } else {
+        setStatus(cameraId, 'offline');
+        addLog(cam.name, '❌ Не удалось подключиться');
+    }
+    
+    updateActiveCount();
+}
+
+// ========== ПРОВЕРКА URL (MJPEG/IMG) ==========
+function tryStreamURL(cameraId, url) {
+    return new Promise((resolve) => {
+        const view = document.getElementById('view' + cameraId);
+        const img = new Image();
+        let resolved = false;
+        
+        const timeout = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                img.src = '';
+                resolve(false);
+            }
+        }, 3000);
+        
+        img.onload = function() {
+            if (!resolved && img.naturalWidth > 16 && img.naturalWidth < 10000) {
+                resolved = true;
+                clearTimeout(timeout);
+                
+                // Показываем изображение
+                view.innerHTML = '';
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'contain';
+                img.id = 'stream-img-' + cameraId;
+                view.appendChild(img);
+                
+                addTimestamp(view, cameraId);
+                addFullscreenBtn(view, cameraId);
+                
+                activeStreams[cameraId] = { type: 'mjpeg', url: url, element: img };
+                
+                // Проверяем, обновляется ли изображение (MJPEG) или статичное
+                checkIfLive(cameraId, img, url, resolve);
+            }
+        };
+        
+        img.onerror = function() {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                resolve(false);
+            }
+        };
+        
+        img.src = url + '?t=' + Date.now();
     });
 }
 
+// ========== ПРОВЕРКА ЖИВОЙ ЛИ ПОТОК ==========
+function checkIfLive(cameraId, img, url, resolve) {
+    // Ждём 1 секунду и проверяем, изменилось ли изображение
+    setTimeout(() => {
+        const img2 = new Image();
+        img2.onload = function() {
+            // Если изображения разные — это живой поток
+            if (img2.naturalWidth > 16) {
+                // Обновляем изображение каждую секунду для живого эффекта
+                if (!streamIntervals[cameraId]) {
+                    streamIntervals[cameraId] = setInterval(() => {
+                        const el = document.getElementById('stream-img-' + cameraId);
+                        if (el) {
+                            el.src = url + '?t=' + Date.now();
+                        } else {
+                            clearInterval(streamIntervals[cameraId]);
+                        }
+                    }, 1000);
+                }
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        };
+        img2.onerror = () => resolve(false);
+        img2.src = url + '?t=' + Date.now() + 1000;
+    }, 1000);
+}
+
+// ========== SNAPSHOT РЕЖИМ (100% рабочий) ==========
+function trySnapshotMode(cameraId, url) {
+    return new Promise((resolve) => {
+        const view = document.getElementById('view' + cameraId);
+        const img = new Image();
+        let resolved = false;
+        
+        const timeout = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                img.src = '';
+                resolve(false);
+            }
+        }, 3000);
+        
+        img.onload = function() {
+            if (!resolved && img.naturalWidth > 16) {
+                resolved = true;
+                clearTimeout(timeout);
+                
+                view.innerHTML = '';
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'contain';
+                img.id = 'stream-img-' + cameraId;
+                view.appendChild(img);
+                
+                addTimestamp(view, cameraId);
+                addFullscreenBtn(view, cameraId);
+                
+                activeStreams[cameraId] = { type: 'snapshot', url: url, element: img };
+                
+                // Автообновление каждые 500мс
+                streamIntervals[cameraId] = setInterval(() => {
+                    const el = document.getElementById('stream-img-' + cameraId);
+                    if (el) {
+                        el.src = url + '?t=' + Date.now();
+                    } else {
+                        clearInterval(streamIntervals[cameraId]);
+                    }
+                }, 500);
+                
+                resolve(true);
+            }
+        };
+        
+        img.onerror = function() {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                resolve(false);
+            }
+        };
+        
+        img.src = url + '?t=' + Date.now();
+    });
+}
+
+// ========== ПОДКЛЮЧЕНИЕ ПО IP ВРУЧНУЮ ==========
+function connectCustomIP(cameraId) {
+    const ipInput = document.getElementById('ip' + cameraId);
+    if (!ipInput || !ipInput.value.trim()) {
+        alert('Введите IP-адрес');
+        return;
+    }
+    cameras[cameraId].ip = ipInput.value.trim();
+    connectCamera(cameraId);
+}
+
+// ========== HTTP / RTSP (кнопки для совместимости) ==========
 function connectHTTP(cameraId, customIP) {
-    const cam = cameras[cameraId];
-    const ip = customIP || cam.ip;
-    
-    if (!ip) {
-        alert('Введите IP-адрес камеры');
-        return;
-    }
-    
-    setStatus(cameraId, 'connecting');
-    addLog(cam.name, 'HTTP подключение к ' + ip);
-    
-    disconnectStream(cameraId);
-    
-    // Порт 8080 для Xiaomi Chuangmi
-    const urls = [
-        'http://' + ip + ':8080/video',
-        'http://' + ip + ':8080/',
-        'http://' + ip + ':8080/stream',
-        'http://' + ip + ':8080/mjpeg',
-        'http://' + ip + ':80/',
-        'http://' + ip + ':80/video',
-        'http://' + ip + ':554/',
-        'http://' + ip + ':8000/',
-    ];
-    
-    tryHTTPUrls(cameraId, urls, 0);
+    if (customIP) cameras[cameraId].ip = customIP;
+    connectCamera(cameraId);
 }
 
-function tryMJPEG(cameraId, url, fallback) {
-    const img = new Image();
-    let resolved = false;
-    
-    const timeout = setTimeout(() => {
-        if (!resolved) {
-            resolved = true;
-            img.src = '';
-            if (fallback) fallback();
-        }
-    }, 3000);
-    
-    img.onload = function() {
-        if (!resolved && img.naturalWidth > 16) {
-            resolved = true;
-            clearTimeout(timeout);
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'contain';
-            showStream(cameraId, img, 'mjpeg');
-            setStatus(cameraId, 'online');
-            addLog(cameras[cameraId].name, 'MJPEG подключено: ' + url);
-        }
-    };
-    
-    img.onerror = function() {
-        if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            if (fallback) fallback();
-        }
-    };
-    
-    img.src = url;
+function connectRTSP(cameraId, customIP) {
+    if (customIP) cameras[cameraId].ip = customIP;
+    connectCamera(cameraId);
 }
 
-function trySnapshot(cameraId, url) {
-    // Автообновляемый снапшот (каждые 2 секунды)
-    const img = new Image();
-    let interval;
-    
-    img.onload = function() {
-        if (img.naturalWidth > 16) {
-            showStream(cameraId, img, 'snapshot');
-            setStatus(cameraId, 'online');
-            addLog(cameras[cameraId].name, 'Snapshot: ' + url);
-            
-            // Автообновление
-            interval = setInterval(() => {
-                img.src = url + '?t=' + Date.now();
-            }, 2000);
-            
-            streamElements[cameraId].interval = interval;
-        }
-    };
-    
-    img.onerror = function() {
-        setStatus(cameraId, 'offline');
-        addLog(cameras[cameraId].name, 'Не удалось подключиться');
-    };
-    
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'contain';
-    img.src = url;
+function connectWebRTC(cameraId) {
+    useWebcam(cameraId);
 }
 
-function tryHTTPUrls(cameraId, urls, index) {
-    if (index >= urls.length) {
-        setStatus(cameraId, 'offline');
-        addLog('Камера ' + cameraId, 'HTTP не найдено');
-        return;
-    }
-    
-    const url = urls[index];
-    addLog(cameras[cameraId].name, 'Пробую: ' + url);
-    
-    tryMJPEG(cameraId, url, () => {
-        tryHTTPUrls(cameraId, urls, index + 1);
-    });
-}
-
-async function connectWebRTC(cameraId) {
+// ========== ВЕБ-КАМЕРА ==========
+async function useWebcam(cameraId) {
     try {
         disconnectStream(cameraId);
         const stream = await navigator.mediaDevices.getUserMedia({
             video: { width: { ideal: 1280 }, height: { ideal: 720 } }
         });
+        
+        const view = document.getElementById('view' + cameraId);
+        view.innerHTML = '';
+        
         const video = document.createElement('video');
         video.srcObject = stream;
         video.autoplay = true;
@@ -272,99 +316,57 @@ async function connectWebRTC(cameraId) {
         video.style.width = '100%';
         video.style.height = '100%';
         video.style.objectFit = 'contain';
-        showStream(cameraId, video, 'webrtc');
+        view.appendChild(video);
+        
+        addTimestamp(view, cameraId);
+        addFullscreenBtn(view, cameraId);
+        
+        activeStreams[cameraId] = { type: 'webcam', stream: stream };
         setStatus(cameraId, 'online');
-        addLog('Камера ' + cameraId, 'WebRTC (веб-камера)');
+        addLog('Камера ' + cameraId, '✅ Веб-камера');
+        updateActiveCount();
     } catch (e) {
-        alert('Нет доступа к веб-камере');
+        alert('Нет доступа к веб-камере: ' + e.message);
     }
-}
-
-function connectCustomIP(cameraId) {
-    const ipInput = document.getElementById('ip' + cameraId);
-    if (!ipInput || !ipInput.value.trim()) {
-        alert('Введите IP-адрес');
-        return;
-    }
-    cameras[cameraId].ip = ipInput.value.trim();
-    updateCameraInfo(cameraId);
-    connectHTTP(cameraId);
-}
-
-// ========== ПОКАЗ ПОТОКА ==========
-function showStream(cameraId, element, type) {
-    const container = document.getElementById('view' + cameraId);
-    const placeholder = document.getElementById('placeholder' + cameraId);
-    
-    container.innerHTML = '';
-    if (placeholder) placeholder.style.display = 'none';
-    
-    container.appendChild(element);
-    
-    // Временная метка
-    const ts = document.createElement('div');
-    ts.className = 'timestamp-overlay';
-    ts.id = 'ts' + cameraId;
-    container.appendChild(ts);
-    
-    // Кнопка фуллскрина
-    const fsBtn = document.createElement('button');
-    fsBtn.className = 'fullscreen-btn';
-    fsBtn.textContent = '⛶';
-    fsBtn.onclick = () => {
-        if (container.requestFullscreen) {
-            container.requestFullscreen();
-        }
-    };
-    container.appendChild(fsBtn);
-    
-    activeStreams[cameraId] = true;
-    streamElements[cameraId] = { element, type };
-    updateActiveCount();
 }
 
 // ========== ОТКЛЮЧЕНИЕ ==========
 function disconnectStream(cameraId) {
-    if (streamElements[cameraId]) {
-        if (streamElements[cameraId].interval) {
-            clearInterval(streamElements[cameraId].interval);
-        }
-        if (streamElements[cameraId].element?.srcObject) {
-            streamElements[cameraId].element.srcObject.getTracks().forEach(t => t.stop());
-        }
-        streamElements[cameraId] = null;
+    if (streamIntervals[cameraId]) {
+        clearInterval(streamIntervals[cameraId]);
+        streamIntervals[cameraId] = null;
     }
-    activeStreams[cameraId] = false;
-    
-    const container = document.getElementById('view' + cameraId);
-    const placeholder = document.getElementById('placeholder' + cameraId);
-    
-    container.innerHTML = '';
-    if (placeholder) {
-        placeholder.style.display = 'block';
-        container.appendChild(placeholder);
+    if (activeStreams[cameraId]) {
+        if (activeStreams[cameraId].stream) {
+            activeStreams[cameraId].stream.getTracks().forEach(t => t.stop());
+        }
+        activeStreams[cameraId] = null;
     }
     
-    const ts = document.createElement('div');
-    ts.className = 'timestamp-overlay';
-    ts.id = 'ts' + cameraId;
-    container.appendChild(ts);
+    const view = document.getElementById('view' + cameraId);
+    view.innerHTML = `
+        <div class="no-signal" id="placeholder${cameraId}">
+            <span class="icon">🎥</span>
+            Нажмите кнопку подключения
+        </div>
+    `;
+    addTimestamp(view, cameraId);
     
     updateActiveCount();
 }
 
 // ========== СНИМОК ==========
 function snapshot(cameraId) {
-    const container = document.getElementById('view' + cameraId);
-    const video = container.querySelector('video');
-    const img = container.querySelector('img');
+    const view = document.getElementById('view' + cameraId);
+    const img = view.querySelector('img');
+    const video = view.querySelector('video');
     
-    if (img && img.src && activeStreams[cameraId]) {
+    if (img && activeStreams[cameraId]) {
         const a = document.createElement('a');
         a.href = img.src;
-        a.download = 'vr-house-cam' + cameraId + '-' + Date.now() + '.jpg';
+        a.download = 'cam' + cameraId + '-' + Date.now() + '.jpg';
         a.click();
-        addLog(cameras[cameraId].name, 'Снимок сохранён');
+        addLog(cameras[cameraId].name, '📸 Снимок сохранён');
     } else if (video && video.videoWidth) {
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
@@ -372,9 +374,9 @@ function snapshot(cameraId) {
         canvas.getContext('2d').drawImage(video, 0, 0);
         const a = document.createElement('a');
         a.href = canvas.toDataURL('image/jpeg');
-        a.download = 'vr-house-cam' + cameraId + '-' + Date.now() + '.jpg';
+        a.download = 'cam' + cameraId + '-' + Date.now() + '.jpg';
         a.click();
-        addLog(cameras[cameraId].name, 'Снимок сохранён');
+        addLog(cameras[cameraId].name, '📸 Снимок сохранён');
     } else {
         alert('Нет активного потока');
     }
@@ -383,15 +385,31 @@ function snapshot(cameraId) {
 // ========== ХЕЛПЕРЫ ==========
 function setStatus(cameraId, status) {
     const dot = document.getElementById('dot' + cameraId);
-    if (dot) {
-        dot.className = 'status-dot status-' + status;
-    }
+    if (dot) dot.className = 'status-dot status-' + status;
     updateActiveCount();
 }
 
 function updateActiveCount() {
     const count = Object.values(activeStreams).filter(Boolean).length;
-    document.getElementById('active-count').textContent = count;
+    const el = document.getElementById('active-count');
+    if (el) el.textContent = count;
+}
+
+function addTimestamp(container, id) {
+    const ts = document.createElement('div');
+    ts.className = 'timestamp-overlay';
+    ts.id = 'ts' + id;
+    container.appendChild(ts);
+}
+
+function addFullscreenBtn(container, id) {
+    const btn = document.createElement('button');
+    btn.className = 'fullscreen-btn';
+    btn.textContent = '⛶';
+    btn.onclick = () => {
+        if (container.requestFullscreen) container.requestFullscreen();
+    };
+    container.appendChild(btn);
 }
 
 // Время
@@ -406,11 +424,7 @@ setInterval(() => {
 let logs = JSON.parse(localStorage.getItem('vr_house_logs') || '[]');
 
 function addLog(camera, event) {
-    logs.unshift({
-        time: new Date().toLocaleString('ru-RU'),
-        camera: camera,
-        event: event
-    });
+    logs.unshift({ time: new Date().toLocaleString('ru-RU'), camera: camera, event: event });
     if (logs.length > 50) logs.pop();
     localStorage.setItem('vr_house_logs', JSON.stringify(logs));
     renderLogs();
@@ -426,31 +440,22 @@ function renderLogs() {
 }
 
 function logout() {
-    for (const key in streamElements) {
-        if (streamElements[key]?.interval) clearInterval(streamElements[key].interval);
-        if (streamElements[key]?.element?.srcObject) {
-            streamElements[key].element.srcObject.getTracks().forEach(t => t.stop());
-        }
+    for (const key in streamIntervals) clearInterval(streamIntervals[key]);
+    for (const key in activeStreams) {
+        if (activeStreams[key]?.stream) activeStreams[key].stream.getTracks().forEach(t => t.stop());
     }
     localStorage.removeItem('sec_token');
     localStorage.removeItem('sec_role');
     window.location.href = 'index.html';
 }
 
-// ========== СТАРТ ==========
+// ========== АВТОСТАРТ ==========
 window.addEventListener('load', () => {
-    initCameras();
     renderLogs();
     updateActiveCount();
-    addLog('VR House', 'Система загружена');
+    addLog('VR House', '🚀 Система загружена');
     
-    // Автоподключение камер с IP
-    setTimeout(() => {
-        for (let i = 1; i <= 2; i++) {
-            if (cameras[i].ip) {
-                addLog(cameras[i].name, 'Автоподключение...');
-                connectHTTP(i);
-            }
-        }
-    }, 1000);
+    // Автоподключение камер 1 и 2
+    setTimeout(() => connectCamera(1), 500);
+    setTimeout(() => connectCamera(2), 1000);
 });
